@@ -161,6 +161,10 @@ blastp -query hisat2_cufflinks_FW.fasta.transdecoder_dir/longest_orfs.pep -db da
 -max_target_seqs: Maximum number of aligned sequences to keep, default = 500<br>
 -num_threads: Number of threads (CPUs) to use in the BLAST search, default = 1<br>
 -evalue: Expectation value (E) threshold for saving hits, default = `10'
+*** Consider of the time and memory, I use Diamond to replace blastp, just as
+```
+diamond blastp -q Trinity_FW.fasta.transdecoder_dir/longest_orfs.pep -d database/uniprot_sprot --outfmt 6 --evalue 1e-5 -o Trinity_FW.fasta_blastp.outfmt6
+```
 ### 3.1.3 search for protein signature: hmmer
 ```
 hmmscan --cpu 8 --domtblout Trinity_FW_pfam.domtblout database/Pfam-A.hmm Trinity_FW.fasta.transdecoder_dir/longest_orfs.pep
@@ -185,23 +189,91 @@ _FW_pfam.domtblout --retain_blastp_hits hisat2_cufflinks
 _FW_blastp.outfmt6
 ```
 #### *Required parameters
--t: the target file in fasta format
+ -t: the target file in fasta format
 #### *Optional parameters
---retain_long_orfs_mode: 'dynamic' or 'strict', default: dynamic
---retain_pfam_hits <string>: domain table output file from running hmmscan to search Pfam
---retain_blastp_hits: blastp output in '-outfmt 6' format.
+ --retain_long_orfs_mode: 'dynamic' or 'strict', default: dynamic<br>
+ --retain_pfam_hits <string>: domain table output file from running hmmscan to search Pfam<br>
+ --retain_blastp_hits: blastp output in '-outfmt 6' format.
 ## 3.2 Merge CDS
 ```
 cat target_Trinity_FW.fasta target_spades_FW.fasta arget_hisat2_trinity_FW.fasta target_hisat2_cufflinks_FW.fasta > FW.fasta
 ```
 ## 3.3 Cluster CDS: cd-hit
 ```
-cd-hit-est -i FW.fasta -o eel -c 0.99 -n 10 -M 16000 - T 8
+cd-hit-est -i FW.fasta -o eel -c 0.99 -M 16000 -T 8
 ```
 #### *Required parameters
--i: input filename in fasta format, can be in .gz format
--o: output filename
+ -i: input filename in fasta format, can be in .gz format<br>
+ -o: output filename
 #### *Optional parameters
- -c: sequence identity threshold, default 0.9
- -M: memory limit (in MB) for the program, default 800
- -T: number of threads, default 1
+ -c: sequence identity threshold, default 0.9<br>
+ -M: memory limit (in MB) for the program, default 800<br>
+ -T: number of threads, default 1<br>
+ -n：word_length, default 10, see user's guide for choosing it<br>
+# Step4: Transcriptome annotation & gene ontology
+## 4.1 Transcriptome annotation: blast
+### 4.1.0 make subset of NR, NT, Swissprot(Japanese eel belongs to Metazoa)
+```
+ get_species_taxids.sh  -n Metazoa
+ get_species_taxids.sh  -t 33208 > list
+ ```
+ ```
+ blastdb_aliastool -dbtype nucl -gilist list -db nt -out nt_Metazoa
+ blastdb_aliastool -dbtype prot -gilist list -db nt -out nt_Metazoa
+ blastdb_aliastool -dbtype prot gilist list -db swissprot -out swissprot_Metazoa
+ ```
+#### *Required parameters
+ -dbtype: molecule_type  
+ -db: dbname
+ -gilist: input_file  
+ -out: database_name
+### 4.1.1 compare to NR
+```
+ blastp -query cd_hit/eel_FW -db nr -outfmt 5 -evalue 1e-3 -num_threads 8 -out FW.nr.outfmt5
+```
+### 4.1.2 compare to NT
+ ```
+ blastn -query cd_hit/eel_FW -db nt -outfmt 5 -evalue 1e-3 -num_threads 8 -out FW.nt.outfmt5
+```
+### 4.1.3 compare to Swissprot
+```
+blastp -query cd_hit/eel_FW -db swissprot -outfmt 5 -evalue 1e-3 -num_threads 8 -out FW.swissprot.outfmt5
+```
+#### *Required parameters
+-query: Input file name<br>
+-db: BLAST database name<br>
+#### *Optional parameters
+-out: Output file name, default = `-'<br>
+-outfmt: alignment view options, 5 = BLAST XML<br>
+-evalue: Expectation value (E) threshold for saving hits, default = 10
+-num_threads: Number of threads (CPUs) to use in the BLAST search, default = 1
+## 4.2 Gene ontology: blast2GO
+```
+???? java -jar blast2go.jar -in FW.nr.outfmt5 -a -v -out FW_GO_nr
+```
+# Step5: Transcriptome assembly validation
+## 5.1 quality assessment: rnaQUAST
+ ```
+python rnaQUAST.py --threads 8 --transcripts cd_hit/eel_FW --reference reference/eel.fa -1 FW_1.fq -2 FW_2.fq --busco_lineage busco/actinopterygii_odb9 -o rnaQUAST/FW_rnaQUAST
+ ```
+#### *Required parameters
+-query: Input file name<br>
+-db: BLAST database name<br>
+#### *Optional parameters
+## 5.2 quality evaluation: RSEM
+ ```
+ ```
+## 5.3 quality control: detonate
+ ```
+ rsem-eval-estimate-transcript-length-distribution cd-hit/eel_FW denotate/parameter_file
+ ```
+ ```
+ ```
+# Step6: difference analysis
+## 6.1 gene expression level: RSEM
+```
+```
+## 6.2 difference analysis: EBSeq
+```
+```
+## 6.3 GO enrichment analysis
