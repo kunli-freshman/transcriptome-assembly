@@ -183,10 +183,7 @@ seqfile: the file used to align to database which is the result of 'select the s
 TransDecoder.Predict -t target_Trinity_FW.fasta --retain_pfam_hits Trinity_FW_pfam.domtblout --retain_blastp_hits Trinity_FW_blastp.outfmt6
 TransDecoder.Predict -t target_spades_FW.fasta --retain_pfam_hits spades_FW_pfam.domtblout --retain_blastp_hits spades_FW_blastp.outfmt6
 TransDecoder.Predict -t target_hisat2_trinity_FW.fasta --retain_pfam_hits hisat2_trinity_FW_pfam.domtblout --retain_blastp_hits hisat2_trinity_FW_blastp.outfmt6
-TransDecoder.Predict -t target_hisat2_cufflinks
-_FW.fasta --retain_pfam_hits hisat2_cufflinks
-_FW_pfam.domtblout --retain_blastp_hits hisat2_cufflinks
-_FW_blastp.outfmt6
+TransDecoder.Predict -t target_hisat2_cufflinks_FW.fasta --retain_pfam_hits hisat2_cufflinks_FW_pfam.domtblout --retain_blastp_hits hisat2_cufflinks_FW_blastp.outfmt6
 ```
 #### *Required parameters
  -t: the target file in fasta format
@@ -212,32 +209,22 @@ cd-hit-est -i FW.fasta -o eel -c 0.99 -M 16000 -T 8
  -n：word_length, default 10, see user's guide for choosing it<br>
 # Step4: Transcriptome annotation & gene ontology
 ## 4.1 Transcriptome annotation: blast
-### 4.1.0 make subset of NR, NT, Swissprot(Japanese eel belongs to Metazoa)
+### 4.1.0 make taxidlist of NR, NT, Swissprot(Japanese eel belongs to Metazoa)
 ```
  get_species_taxids.sh  -n Metazoa
  get_species_taxids.sh  -t 33208 > list
  ```
- ```
- blastdb_aliastool -dbtype nucl -gilist list -db nt -out nt_Metazoa
- blastdb_aliastool -dbtype prot -gilist list -db nt -out nt_Metazoa
- blastdb_aliastool -dbtype prot gilist list -db swissprot -out swissprot_Metazoa
- ```
-#### *Required parameters
- -dbtype: molecule_type  
- -db: dbname
- -gilist: input_file  
- -out: database_name
 ### 4.1.1 compare to NR
 ```
- blastp -query cd_hit/eel_FW -db nr -outfmt 5 -evalue 1e-3 -num_threads 8 -out FW.nr.outfmt5
+ blastx -query cd_hit/eel_FW -db database/nr -taxidlist list -max_target_seqs 1 -outfmt 6 -evalue 1e-3 -out FW.nr.outfmt6
 ```
 ### 4.1.2 compare to NT
  ```
- blastn -query cd_hit/eel_FW -db nt -outfmt 5 -evalue 1e-3 -num_threads 8 -out FW.nt.outfmt5
+ blastn -query cd_hit/eel_FW -db database/nt -taxidlist list -max_target_seqs 1 -outfmt 6 -evalue 1e-3 -out FW.nt.outfmt6
 ```
 ### 4.1.3 compare to Swissprot
 ```
-blastp -query cd_hit/eel_FW -db swissprot -outfmt 5 -evalue 1e-3 -num_threads 8 -out FW.swissprot.outfmt5
+blastx -query cd_hit/eel_FW -db database/swissprot -taxidlist list -max_target_seqs 1 -outfmt 6 -evalue 1e-3 -out FW.swissprot.outfmt6
 ```
 #### *Required parameters
 -query: Input file name<br>
@@ -254,21 +241,34 @@ blastp -query cd_hit/eel_FW -db swissprot -outfmt 5 -evalue 1e-3 -num_threads 8 
 # Step5: Transcriptome assembly validation
 ## 5.1 quality assessment: rnaQUAST
  ```
-python rnaQUAST.py --threads 8 --transcripts cd_hit/eel_FW --reference reference/eel.fa -1 FW_1.fq -2 FW_2.fq --busco_lineage busco/actinopterygii_odb9 -o rnaQUAST/FW_rnaQUAST
+python rnaQUAST.py --threads 8 --transcripts cd_hit/eel_FW -1 FW_1.fq -2 FW_2.fq --busco_lineage busco/actinopterygii_odb9 -o rnaQUAST/FW_rnaQUAST
  ```
 #### *Required parameters
--query: Input file name<br>
--db: BLAST database name<br>
+-1, --left_reads: File with forward paired-end reads in FASTQ or gzip-compressed fastq format.<br>
+-2, --right_reads: File with reverse paired-end reads in FASTQ or gzip-compressed fastq format. <br>
+-o, --output_dir: Directory to store all results. Default is rnaQUAST_results/results_<datetime>. <br>
 #### *Optional parameters
-## 5.2 quality evaluation: RSEM
- ```
- ```
-## 5.3 quality control: detonate
+--prokaryote: Use this option if the genome is prokaryotic. <br>
+-ss, --strand_specific: Set if transcripts were assembled using strand-specific RNA-Seq data in order to benefit from knowing whether the transcript originated from the + or - strand. <br>
+--min_alignment: Minimal alignment length to be used, default value is 50. <br>
+--busco_lineage: Run BUSCO tool, which detects core genes in the assembly.<br>
+--tophat: Run with TopHat tool instead of STAR for analyzing database coverage by reads.<br>
+-t, --threads: Maximum number of threads. Default is min(number of CPUs / 2, 16). <br>
+## 5.2 quality control: detonate
  ```
  rsem-eval-estimate-transcript-length-distribution cd-hit/eel_FW denotate/parameter_file
  ```
  ```
+rsem-eval-calculate-score --transcript-length-parameters denotate/parameter_file --paired-end FW_1.fq FW_2.fq cd_hit/eel_FW eel_FW 737
  ```
+#### *Required parameters
+--paired-end upstream_read_file(s) downstream_read_file(s): "FW_1.fq FW_2.fq", the original data in fastq format.<br>
+assembly_fasta_file: "cd_hit/eel_FW", a multi-FASTA file contains the assembly used for calculating RSEM-EVAL score.<br>
+sample_name: "eel_FW",  The name of the sample analyzed. All output files are prefixed by this name.<br>
+L: "737",  For paired-end data, L represents the average fragment length. <br>
+#### *Optional parameters
+--overlap-size: The minimum overlap size required to join two reads together. Default = 0<br>
+--transcript-length-parameters: Read the true transcript length distribution's mean and standard deviation from <file><br>
 # Step6: difference analysis
 ## 6.1 gene expression level: RSEM
 ```
