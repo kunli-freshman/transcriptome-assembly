@@ -207,7 +207,7 @@ cd-hit-est -i FW.fasta -o eel -c 0.99 -M 16000 -T 8
  -M: memory limit (in MB) for the program, default 800<br>
  -T: number of threads, default 1<br>
  -n：word_length, default 10, see user's guide for choosing it<br>
-# Step4: Transcriptome annotation & gene ontology
+# Step4: Transcriptome annotation & gene ontology (show FW as exsample)
 ## 4.1 Transcriptome annotation: blast
 ### 4.1.0 make taxidlist of NR, NT, Swissprot(Japanese eel belongs to Metazoa)
 ```
@@ -238,7 +238,7 @@ blastx -query cd_hit/eel_FW -db database/swissprot -taxidlist list -max_target_s
 ```
 ???? java -jar blast2go.jar -in FW.nr.outfmt5 -a -v -out FW_GO_nr
 ```
-# Step5: Transcriptome assembly validation
+# Step5: Transcriptome assembly validation (show FW as exsample)
 ## 5.1 quality assessment: rnaQUAST
  ```
 python rnaQUAST.py --threads 8 --transcripts cd_hit/eel_FW -1 FW_1.fq -2 FW_2.fq --busco_lineage busco/actinopterygii_odb9 -o rnaQUAST/FW_rnaQUAST
@@ -269,10 +269,49 @@ L: "737",  For paired-end data, L represents the average fragment length. <br>
 #### *Optional parameters
 --overlap-size: The minimum overlap size required to join two reads together. Default = 0<br>
 --transcript-length-parameters: Read the true transcript length distribution's mean and standard deviation from <file><br>
-# Step6: difference analysis
+# Step6: difference analysis (show FW as exsample)
 ## 6.1 gene expression level: RSEM
 ```
+rsem-prepare-reference --bowtie2 cd_hit/eel_SW reference/eel_SW
 ```
+#### *Required parameters
+reference_fasta_file(s): "", either a comma-separated list of Multi-FASTA formatted files OR a directory name. If a directory name is specified, RSEM will read all files with suffix ".fa" or ".fasta" in this directory. The files should contain either the sequences of transcripts or an entire genome, depending on whether the '--gtf' option is used.<br>
+reference name: "", The name of the reference used. RSEM will generate several reference-related files that are prefixed by this name. This name can contain path information.
+#### *Optional parameters
+ --gtf: If this option is on, RSEM assumes that 'reference_fasta_file(s)' contains the sequence of a genome, and will extract transcript
+        reference sequences using the gene annotations specified in <reference_fasta_file(s)>, which should be in GTF format.
+        If this and '--gff3' options are off, RSEM will assume 'reference_fasta_file(s)' contains the reference transcripts. In
+        this case, RSEM assumes that name of each sequence in the Multi-FASTA files is its transcript_id.<br>
+ --transcript-to-gene-map <file>: Use information from <file> to map from transcript (isoform) ids to gene ids. Each line of <file> should be of the form:<br>
+        gene_id transcript_id<br>
+with the two fields separated by a tab character.<br>
+ --bowtie: Build Bowtie indices. <br>
+ --bowtie-path <path>: The path to the Bowtie executables. Default: the path to Bowtie executables is assumed to be in the user's PATH environment variable<br>
+--bowtie2: Build Bowtie 2 indices. Default: off<br>
+--bowtie2-path: The path to the Bowtie 2 executables. Default: the path to Bowtie 2 executables is assumed to be in the user's PATH environment variable<br>
+--star: Build STAR indices. Default: off<br>
+--star-path <path>: The path to STAR's executable. Default: the path to STAR executable is assumed to be in user's PATH environment variable<br><br>
+  -p/--num-threads <int>: Number of threads to use for building STAR's genome indices.<br>
+ ```
+rsem-calculate-expression -p 8 --paired-end --bowtie2 --estimate-rspd --append-names FW_1.fq FW_2.fq reference/eel exp/eel 
+ ```
+#### *Required parameters
+upstream_read_files(s): Comma-separated list of files containing single-end reads or upstream reads for paired-end data. By default, these files are assumed to be in FASTQ format. If the --no-qualities option is specified, then FASTA format is expected.<br>
+downstream_read_file(s): Comma-separated list of files containing downstream reads which are paired with the upstream reads. By default, these files are assumed to be in FASTQ format. If the --no-qualities option is specified, then FASTA format is expected.<br>
+reference_name: The name of the reference used. The user must have run 'rsem-prepare-reference' with this reference_name before running
+this program.<br>
+sample_name: The name of the sample analyzed. All output files are prefixed by this name <br>
+#### *Optional parameters
+--paired-end: Input reads are paired-end reads. Default: off<br>
+-p/--num-threads <int>: Number of threads to use. Both Bowtie/Bowtie2, expression estimation and 'samtools sort' will use this many threads. Default: 1<br>
+--bowtie2: Use Bowtie 2 instead of Bowtie to align reads. Since currently RSEM does not handle indel, local and discordant alignments, the Bowtie2 parameters are set in a way to avoid those alignments. In particular, we use options '--sensitive --dpad 0 --gbar 99999999
+--mp 1,1 --np 1 --score-min L,0,-0.1' by default. The last parameter of '--score-min', '-0.1', is the negative of maximum mismatch rate.
+This rate can be set by option '--bowtie2-mismatch-rate'. If reads are paired-end, we additionally use options '--no-mixed' and
+'--no-discordant'. Default: off<br>
+--star: Use STAR to align reads. Alignment parameters are from ENCODE3's STAR-RSEM pipeline. To save computational time and memory resources, STAR's Output BAM file is unsorted. It is stored in RSEM's temporary directory with name as 'sample_name.bam'. Each STAR job will have its own private copy of the genome in memory. Default: off<br>
+ --append-names: If gene_name/transcript_name is available, append it to the end of gene_id/transcript_id (separated by '_') in files
+'sample_name.isoforms.results' and 'sample_name.genes.results'. Default: off<br>
+ --estimate-rspd: Set this option if you want to estimate the read start position distribution (RSPD) from data. Otherwise, RSEM will use a uniform RSPD. Default: off<br> 
 ## 6.2 difference analysis: EBSeq
 ```
 ```
