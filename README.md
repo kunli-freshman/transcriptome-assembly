@@ -314,5 +314,9 @@ This rate can be set by option '--bowtie2-mismatch-rate'. If reads are paired-en
  --estimate-rspd: Set this option if you want to estimate the read start position distribution (RSPD) from data. Otherwise, RSEM will use a uniform RSPD. Default: off<br> 
 ## 6.2 difference analysis: EBSeq
 ```
+rsem-generate-ngvector reference/eel eel_ref
+rsem-generate-data-matrix FW.isoforms.results SW.isoforms.results > IsoMat.txt
+rsem-run-ebseq --ngvector eel_ref.ngvec IsoMat.txt 1,1 IsoMat.results
+rsem-control-fdr IsoMat.results 0.05 IsoMat.de.txt
 ```
 ## 6.3 GO enrichment analysis
