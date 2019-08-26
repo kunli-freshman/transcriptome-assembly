@@ -272,7 +272,7 @@ L: "737",  For paired-end data, L represents the average fragment length. <br>
 # Step6: difference analysis (show FW as exsample)
 ## 6.1 gene expression level: RSEM
 ```
-rsem-prepare-reference --bowtie2 cd_hit/eel_SW reference/eel_SW
+rsem-prepare-reference --bowtie2 cd_hit/eel_FW reference/eel_FW
 ```
 #### *Required parameters
 reference_fasta_file(s): "", either a comma-separated list of Multi-FASTA formatted files OR a directory name. If a directory name is specified, RSEM will read all files with suffix ".fa" or ".fasta" in this directory. The files should contain either the sequences of transcripts or an entire genome, depending on whether the '--gtf' option is used.<br>
@@ -293,7 +293,7 @@ with the two fields separated by a tab character.<br>
 --star-path <path>: The path to STAR's executable. Default: the path to STAR executable is assumed to be in user's PATH environment variable<br><br>
   -p/--num-threads <int>: Number of threads to use for building STAR's genome indices.<br>
  ```
-rsem-calculate-expression -p 8 --paired-end --bowtie2 --estimate-rspd --append-names FW_1.fq FW_2.fq reference/eel exp/eel 
+rsem-calculate-expression -p 8 --paired-end --bowtie2 --estimate-rspd --append-names FW_1.fq FW_2.fq reference/eel_FW exp/eel_FW
  ```
 #### *Required parameters
 upstream_read_files(s): Comma-separated list of files containing single-end reads or upstream reads for paired-end data. By default, these files are assumed to be in FASTQ format. If the --no-qualities option is specified, then FASTA format is expected.<br>
